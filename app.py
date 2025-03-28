@@ -1,5 +1,8 @@
+# Suppress warnings at the very top, before any imports
 import warnings
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pydub.utils")
+# Broader suppression if needed
+warnings.filterwarnings("ignore", category=SyntaxWarning)
 
 import streamlit as st
 import speech_recognition as sr
@@ -22,6 +25,7 @@ from sumy.summarizers.lsa import LsaSummarizer
 # Download NLTK punkt_tab for English tokenization
 try:
     nltk.download('punkt_tab', quiet=True)
+    st.write("NLTK punkt_tab downloaded successfully.")
 except Exception as e:
     st.warning(f"Failed to download NLTK punkt_tab: {str(e)}. Summarization may not work.")
 
@@ -115,8 +119,11 @@ def summarize_text(text, sentence_count=2):
         parser = PlaintextParser.from_string(text, Tokenizer("english"))
         summarizer = LsaSummarizer()
         summary = summarizer(parser.document, sentence_count)
-        return " ".join([str(sentence) for sentence in summary])
+        summary_text = " ".join([str(sentence) for sentence in summary])
+        st.write("Summary generated successfully.")
+        return summary_text
     except Exception as e:
+        st.error(f"Error summarizing text: {str(e)}")
         return f"Error summarizing text: {str(e)}"
 
 # Function to convert text to audio with ElevenLabs
@@ -161,6 +168,7 @@ tts_preference = st.radio("Text-to-Speech Engine", ("ElevenLabs (Random Voice)",
 
 # Option to include summary (in English)
 include_summary = st.checkbox("Include Summary of Translated Text (in English)", value=False)
+st.write(f"Summary checkbox value: {include_summary}")  # Debug
 
 # Get available voices for ElevenLabs
 api_key = os.getenv("ELEVENLABS_API_KEY") or "sk_b92f5590f2870ebf5b9ee5f14d0f895007087eaad06a218e"
@@ -209,8 +217,11 @@ if uploaded_file is not None:
         st.write(f"Translated Text ({output_lang_name}):", translated_text)
 
         if include_summary:
+            st.write("Attempting to generate summary...")  # Debug
             summary = summarize_text(translated_text, sentence_count=2)
             st.write("Summary (English):", summary)
+        else:
+            st.write("Summary skipped (checkbox not selected).")  # Debug
 
         with st.spinner("Generating audio..."):
             if tts_preference == "ElevenLabs (Random Voice)":
