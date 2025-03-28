@@ -7,3 +7,4 @@ gtts
 requests
 pydub
 sumy
+nltk
