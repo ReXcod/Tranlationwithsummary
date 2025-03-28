@@ -10,6 +10,7 @@ from gtts import gTTS
 from pydub import AudioSegment
 import os
 import requests
+import nltk
 from io import BytesIO
 import base64
 import textwrap
@@ -17,6 +18,12 @@ import random
 from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
 from sumy.summarizers.lsa import LsaSummarizer
+
+# Download NLTK punkt_tab for tokenization
+try:
+    nltk.download('punkt_tab', quiet=True)
+except Exception as e:
+    st.warning(f"Failed to download NLTK punkt_tab: {str(e)}. Summarization may not work for some languages.")
 
 # Supported languages
 LANGUAGES = {
@@ -70,8 +77,9 @@ def audio_to_text(audio_file_content, file_extension):
     try:
         with sr.AudioFile(BytesIO(audio_file_content)) as source:
             audio_data = recognizer.record(source)
-            st.write(f"Audio data recorded. Duration: {audio_data.duration_seconds} seconds")
-            for attempt in range(3):  # Retry up to 3 times
+            # Removed duration_seconds as it’s not an attribute
+            st.write("Audio data recorded successfully.")
+            for attempt in range(3):
                 try:
                     text = recognizer.recognize_google(audio_data)
                     return text
@@ -105,6 +113,10 @@ def translate_text(text, dest_lang):
 @st.cache_data
 def summarize_text(text, language="english", sentence_count=2):
     try:
+        # Use English as fallback if language tokenizer isn’t available
+        if language not in Tokenizer.LANGUAGES:
+            st.warning(f"Tokenizer for {language} not available. Using English instead.")
+            language = "english"
         parser = PlaintextParser.from_string(text, Tokenizer(language))
         summarizer = LsaSummarizer()
         summary = summarizer(parser.document, sentence_count)
@@ -186,7 +198,7 @@ if uploaded_file is not None:
         input_text = audio_to_text(audio_content, file_extension)
     st.write("Recognized Text:", input_text)
 
-    if "Could not request results" not in input_text and "Conversion to WAV failed" not in input_text and "Speech recognition failed" not in input_text:
+    if "Could not request results" not in input_text and "Conversion to WAV failed" not in input_text and "Speech recognition failed" not in input_text and "Error processing audio file" not in input_text:
         if input_mode == "Auto-Detect":
             detected_lang = detect_language(input_text)
             st.write(f"Detected Input Language Code: {detected_lang}")
