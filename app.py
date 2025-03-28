@@ -1,3 +1,7 @@
+import warnings
+# Suppress SyntaxWarning from pydub at the very top
+warnings.filterwarnings("ignore", category=SyntaxWarning, module="pydub.utils")
+
 import streamlit as st
 import speech_recognition as sr
 from langdetect import detect
@@ -11,13 +15,9 @@ from io import BytesIO
 import base64
 import textwrap
 import random
-import warnings
 from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
 from sumy.summarizers.lsa import LsaSummarizer
-
-# Suppress SyntaxWarning from pydub
-warnings.filterwarnings("ignore", category=SyntaxWarning, module="pydub.utils")
 
 # Supported languages
 LANGUAGES = {
@@ -51,14 +51,13 @@ def get_available_voices(api_key):
 # Function to convert audio or video file to WAV
 def convert_to_wav(audio_file, file_extension):
     try:
-        # Handle both audio and video files (extracts audio from video)
         audio = AudioSegment.from_file(audio_file, format=file_extension)
         wav_io = BytesIO()
         audio.export(wav_io, format="wav")
         wav_io.seek(0)
         return wav_io.read()
     except Exception as e:
-        st.error(f"Failed to convert file to WAV: {str(e)}")
+        st.error(f"Failed to convert {file_extension} to WAV: {str(e)}")
         return None
 
 # Cached function to convert audio file to text
@@ -78,6 +77,8 @@ def audio_to_text(audio_file_content, file_extension):
             return "Could not understand the audio"
         except sr.RequestError:
             return "Could not request results; check your internet connection"
+        except Exception as e:
+            return f"Speech recognition failed: {str(e)}"
 
 # Cached function to detect language
 @st.cache_data
@@ -181,7 +182,7 @@ if uploaded_file is not None:
         input_text = audio_to_text(audio_content, file_extension)
     st.write("Recognized Text:", input_text)
 
-    if input_text not in ["Could not understand the audio", "Could not request results; check your internet connection", "Conversion to WAV failed"]:
+    if input_text not in ["Could not understand the audio", "Could not request results; check your internet connection", "Conversion to WAV failed", f"Speech recognition failed: {str(Exception())}"]:
         if input_mode == "Auto-Detect":
             detected_lang = detect_language(input_text)
             st.write(f"Detected Input Language Code: {detected_lang}")
@@ -196,7 +197,6 @@ if uploaded_file is not None:
             translated_text = translate_text(input_text, output_lang_code)
         st.write(f"Translated Text ({output_lang_name}):", translated_text)
 
-        # Summary option
         if include_summary:
             summary = summarize_text(translated_text, language=output_lang_name.lower())
             st.write(f"Summary ({output_lang_name}):", summary)
@@ -216,6 +216,6 @@ if uploaded_file is not None:
             st.write(f"{output_lang_name} Audio Output (Voice: {used_voice}):")
             st.markdown(audio_output, unsafe_allow_html=True)
     else:
-        st.error("Audio/video processing failed.")
+        st.error(f"Audio/video processing failed. Reason: {input_text}")
 
 st.write("Note: Supports WAV, MP3, AAC, MKV, MP4, and more. Extracts audio from video. Uses ElevenLabs with gTTS fallback.")
