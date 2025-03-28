@@ -1,0 +1,9 @@
+streamlit
+speechrecognition
+langdetect
+googletrans==3.1.0a0
+elevenlabs
+gtts
+requests
+pydub
+sumy
