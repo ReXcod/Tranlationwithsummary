@@ -77,7 +77,6 @@ def audio_to_text(audio_file_content, file_extension):
     try:
         with sr.AudioFile(BytesIO(audio_file_content)) as source:
             audio_data = recognizer.record(source)
-            # Removed duration_seconds as it’s not an attribute
             st.write("Audio data recorded successfully.")
             for attempt in range(3):
                 try:
@@ -113,16 +112,19 @@ def translate_text(text, dest_lang):
 @st.cache_data
 def summarize_text(text, language="english", sentence_count=2):
     try:
-        # Use English as fallback if language tokenizer isn’t available
-        if language not in Tokenizer.LANGUAGES:
-            st.warning(f"Tokenizer for {language} not available. Using English instead.")
-            language = "english"
         parser = PlaintextParser.from_string(text, Tokenizer(language))
         summarizer = LsaSummarizer()
         summary = summarizer(parser.document, sentence_count)
         return " ".join([str(sentence) for sentence in summary])
     except Exception as e:
-        return f"Error summarizing text: {str(e)}"
+        st.warning(f"Failed to summarize in {language}. Falling back to English.")
+        try:
+            parser = PlaintextParser.from_string(text, Tokenizer("english"))
+            summarizer = LsaSummarizer()
+            summary = summarizer(parser.document, sentence_count)
+            return " ".join([str(sentence) for sentence in summary])
+        except Exception as e2:
+            return f"Error summarizing text: {str(e2)}"
 
 # Function to convert text to audio with ElevenLabs
 def text_to_audio_elevenlabs(text, lang, voices):
