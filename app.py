@@ -1,5 +1,4 @@
 import warnings
-# Suppress SyntaxWarning from pydub at the very top
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pydub.utils")
 
 import streamlit as st
@@ -55,30 +54,35 @@ def convert_to_wav(audio_file, file_extension):
         wav_io = BytesIO()
         audio.export(wav_io, format="wav")
         wav_io.seek(0)
+        st.write(f"Converted {file_extension} to WAV successfully. Size: {len(wav_io.getvalue())} bytes")
         return wav_io.read()
     except Exception as e:
         st.error(f"Failed to convert {file_extension} to WAV: {str(e)}")
         return None
 
-# Cached function to convert audio file to text
-@st.cache_data
+# Function to convert audio file to text with retry
 def audio_to_text(audio_file_content, file_extension):
     recognizer = sr.Recognizer()
     if file_extension != "wav":
         audio_file_content = convert_to_wav(BytesIO(audio_file_content), file_extension)
         if audio_file_content is None:
             return "Conversion to WAV failed"
-    with sr.AudioFile(BytesIO(audio_file_content)) as source:
-        audio_data = recognizer.record(source)
-        try:
-            text = recognizer.recognize_google(audio_data)
-            return text
-        except sr.UnknownValueError:
-            return "Could not understand the audio"
-        except sr.RequestError:
-            return "Could not request results; check your internet connection"
-        except Exception as e:
-            return f"Speech recognition failed: {str(e)}"
+    try:
+        with sr.AudioFile(BytesIO(audio_file_content)) as source:
+            audio_data = recognizer.record(source)
+            st.write(f"Audio data recorded. Duration: {audio_data.duration_seconds} seconds")
+            for attempt in range(3):  # Retry up to 3 times
+                try:
+                    text = recognizer.recognize_google(audio_data)
+                    return text
+                except sr.RequestError as e:
+                    st.warning(f"Attempt {attempt + 1} failed: {str(e)}. Retrying...")
+                    if attempt == 2:
+                        return f"Could not request results after 3 attempts: {str(e)}"
+                except Exception as e:
+                    return f"Speech recognition failed: {str(e)}"
+    except Exception as e:
+        return f"Error processing audio file: {str(e)}"
 
 # Cached function to detect language
 @st.cache_data
@@ -182,7 +186,7 @@ if uploaded_file is not None:
         input_text = audio_to_text(audio_content, file_extension)
     st.write("Recognized Text:", input_text)
 
-    if input_text not in ["Could not understand the audio", "Could not request results; check your internet connection", "Conversion to WAV failed", f"Speech recognition failed: {str(Exception())}"]:
+    if "Could not request results" not in input_text and "Conversion to WAV failed" not in input_text and "Speech recognition failed" not in input_text:
         if input_mode == "Auto-Detect":
             detected_lang = detect_language(input_text)
             st.write(f"Detected Input Language Code: {detected_lang}")
@@ -217,5 +221,6 @@ if uploaded_file is not None:
             st.markdown(audio_output, unsafe_allow_html=True)
     else:
         st.error(f"Audio/video processing failed. Reason: {input_text}")
+        st.write("Try uploading a different file or check your internet connection.")
 
 st.write("Note: Supports WAV, MP3, AAC, MKV, MP4, and more. Extracts audio from video. Uses ElevenLabs with gTTS fallback.")
