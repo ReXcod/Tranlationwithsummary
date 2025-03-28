@@ -1,7 +1,5 @@
-# Suppress warnings at the very top, before any imports
 import warnings
 warnings.filterwarnings("ignore", category=SyntaxWarning, module="pydub.utils")
-# Broader suppression if needed
 warnings.filterwarnings("ignore", category=SyntaxWarning)
 
 import streamlit as st
@@ -120,7 +118,10 @@ def summarize_text(text, sentence_count=2):
         summarizer = LsaSummarizer()
         summary = summarizer(parser.document, sentence_count)
         summary_text = " ".join([str(sentence) for sentence in summary])
-        st.write("Summary generated successfully.")
+        st.write(f"Summary generated. Original text length: {len(text.split())}. Summary length: {len(summary_text.split())}")
+        if len(summary_text.split()) >= len(text.split()):
+            st.warning("Summary is not shorter than original text. Using first sentence as fallback.")
+            return text.split('.')[0] + "."  # Fallback to first sentence
         return summary_text
     except Exception as e:
         st.error(f"Error summarizing text: {str(e)}")
@@ -217,7 +218,7 @@ if uploaded_file is not None:
         st.write(f"Translated Text ({output_lang_name}):", translated_text)
 
         if include_summary:
-            st.write("Attempting to generate summary...")  # Debug
+            st.write("Attempting to generate summary of translated text...")  # Debug
             summary = summarize_text(translated_text, sentence_count=2)
             st.write("Summary (English):", summary)
         else:
