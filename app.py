@@ -19,11 +19,11 @@ from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
 from sumy.summarizers.lsa import LsaSummarizer
 
-# Download NLTK punkt_tab for tokenization
+# Download NLTK punkt_tab for English tokenization
 try:
     nltk.download('punkt_tab', quiet=True)
 except Exception as e:
-    st.warning(f"Failed to download NLTK punkt_tab: {str(e)}. Summarization may not work for some languages.")
+    st.warning(f"Failed to download NLTK punkt_tab: {str(e)}. Summarization may not work.")
 
 # Supported languages
 LANGUAGES = {
@@ -108,23 +108,16 @@ def translate_text(text, dest_lang):
     translated_chunks = [translator.translate(chunk, dest=dest_lang).text for chunk in chunks]
     return " ".join(translated_chunks)
 
-# Function to summarize text
+# Function to summarize text (always in English)
 @st.cache_data
-def summarize_text(text, language="english", sentence_count=2):
+def summarize_text(text, sentence_count=2):
     try:
-        parser = PlaintextParser.from_string(text, Tokenizer(language))
+        parser = PlaintextParser.from_string(text, Tokenizer("english"))
         summarizer = LsaSummarizer()
         summary = summarizer(parser.document, sentence_count)
         return " ".join([str(sentence) for sentence in summary])
     except Exception as e:
-        st.warning(f"Failed to summarize in {language}. Falling back to English.")
-        try:
-            parser = PlaintextParser.from_string(text, Tokenizer("english"))
-            summarizer = LsaSummarizer()
-            summary = summarizer(parser.document, sentence_count)
-            return " ".join([str(sentence) for sentence in summary])
-        except Exception as e2:
-            return f"Error summarizing text: {str(e2)}"
+        return f"Error summarizing text: {str(e)}"
 
 # Function to convert text to audio with ElevenLabs
 def text_to_audio_elevenlabs(text, lang, voices):
@@ -166,8 +159,8 @@ st.write("Upload an audio or video file (WAV, MP3, AAC, MKV, MP4, etc.), choose 
 # Toggle for TTS engine preference
 tts_preference = st.radio("Text-to-Speech Engine", ("ElevenLabs (Random Voice)", "gTTS (Normal Voice)"), index=0)
 
-# Option to include summary
-include_summary = st.checkbox("Include Summary of Translated Text", value=False)
+# Option to include summary (in English)
+include_summary = st.checkbox("Include Summary of Translated Text (in English)", value=False)
 
 # Get available voices for ElevenLabs
 api_key = os.getenv("ELEVENLABS_API_KEY") or "sk_b92f5590f2870ebf5b9ee5f14d0f895007087eaad06a218e"
@@ -216,8 +209,8 @@ if uploaded_file is not None:
         st.write(f"Translated Text ({output_lang_name}):", translated_text)
 
         if include_summary:
-            summary = summarize_text(translated_text, language=output_lang_name.lower())
-            st.write(f"Summary ({output_lang_name}):", summary)
+            summary = summarize_text(translated_text, sentence_count=2)
+            st.write("Summary (English):", summary)
 
         with st.spinner("Generating audio..."):
             if tts_preference == "ElevenLabs (Random Voice)":
