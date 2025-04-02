@@ -121,11 +121,24 @@ def summarize_text(text, sentence_count=2):
         st.write(f"Summary generated. Original text length: {len(text.split())}. Summary length: {len(summary_text.split())}")
         if len(summary_text.split()) >= len(text.split()):
             st.warning("Summary is not shorter than original text. Using first sentence as fallback.")
-            return text.split('.')[0] + "."  # Fallback to first sentence
+            return text.split('.')[0] + "."
         return summary_text
     except Exception as e:
         st.error(f"Error summarizing text: {str(e)}")
         return f"Error summarizing text: {str(e)}"
+
+# Function to generate simple questions based on transcription
+def generate_questions(transcription):
+    # For simplicity, manually crafted questions based on text content
+    # In a real app, you'd use an AI model (e.g., GPT) for dynamic generation
+    sentences = transcription.split('.')
+    questions = []
+    if len(sentences) > 1:
+        questions.append(f"What is the main topic discussed in: '{sentences[0]}'?")
+        questions.append(f"What details are provided about: '{sentences[-2]}'?")
+    else:
+        questions.append(f"What does the speaker mean by: '{transcription}'?")
+    return questions
 
 # Function to convert text to audio with ElevenLabs
 def text_to_audio_elevenlabs(text, lang, voices):
@@ -167,8 +180,8 @@ st.write("Upload an audio or video file (WAV, MP3, AAC, MKV, MP4, etc.), choose 
 # Toggle for TTS engine preference
 tts_preference = st.radio("Text-to-Speech Engine", ("ElevenLabs (Random Voice)", "gTTS (Normal Voice)"), index=0)
 
-# Option to include summary (in English)
-include_summary = st.checkbox("Include Summary of Translated Text (in English)", value=False)
+# Option to include summary (in English) with questions
+include_summary = st.checkbox("Include Summary of Translated Text (in English) with Questions", value=False)
 st.write(f"Summary checkbox value: {include_summary}")  # Debug
 
 # Get available voices for ElevenLabs
@@ -218,11 +231,21 @@ if uploaded_file is not None:
         st.write(f"Translated Text ({output_lang_name}):", translated_text)
 
         if include_summary:
-            st.write("Attempting to generate summary of translated text...")  # Debug
+            st.write("Attempting to generate summary of translated text...")
             summary = summarize_text(translated_text, sentence_count=2)
             st.write("Summary (English):", summary)
+
+            # Generate and display questions based on transcription
+            st.write("Questions based on Recognized Text:")
+            questions = generate_questions(input_text)
+            for i, q in enumerate(questions, 1):
+                st.write(f"{i}. {q}")
+
+            # Future learning resources note
+            st.info("Extra Feature: More interactive learning resources (e.g., quizzes, flashcards) will be added in future updates!")
+
         else:
-            st.write("Summary skipped (checkbox not selected).")  # Debug
+            st.write("Summary and questions skipped (checkbox not selected).")
 
         with st.spinner("Generating audio..."):
             if tts_preference == "ElevenLabs (Random Voice)":
