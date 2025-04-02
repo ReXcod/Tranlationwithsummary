@@ -18,7 +18,7 @@ import random
 import openai
 
 # Set OpenAI API key
-openai.api_key = os.getenv("OPENAI_API_KEY") or "your_openai_api_key_here"  # Replace with your key or use secrets
+openai.api_key = os.getenv("OPENAI_API_KEY") or "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"  # Replace with your key or use secrets
 
 # Supported languages
 LANGUAGES = {
