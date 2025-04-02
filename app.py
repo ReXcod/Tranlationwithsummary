@@ -17,8 +17,8 @@ import textwrap
 import random
 import openai
 
-# Set OpenAI API key
-openai.api_key = os.getenv("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") or "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"  # Replace with your key or use secrets
+# Set OpenAI API key (your provided key)
+openai.api_key = "sk-proj-JPoLh4v3aMZvPa0JRDtjkkm7Php8MiT1HjaoYrMuTuDAqN3JsonxVy4OpxOVXqpGOY-s70SG-PT3BlbkFJ2TQCr36zFDxKsdImL8JpSPkDef9O0cjLS5Yci3qejQ9M4_S4UsGXenpJaAn2yyVj6sgWwz73Q"
 
 # Supported languages
 LANGUAGES = {
@@ -109,7 +109,7 @@ def summarize_text(text):
     try:
         prompt = f"Summarize the following text in English in 1-2 concise sentences:\n\n{text}"
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",  # Use "gpt-4" if you have access
+            model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=50,
             temperature=0.5
