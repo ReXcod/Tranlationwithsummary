@@ -6,5 +6,4 @@ elevenlabs
 gtts
 requests
 pydub
-sumy
-nltk
+openai  # Added for OpenAI API
