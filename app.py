@@ -11,21 +11,14 @@ from gtts import gTTS
 from pydub import AudioSegment
 import os
 import requests
-import nltk
 from io import BytesIO
 import base64
 import textwrap
 import random
-from sumy.parsers.plaintext import PlaintextParser
-from sumy.nlp.tokenizers import Tokenizer
-from sumy.summarizers.lsa import LsaSummarizer
+import openai
 
-# Download NLTK punkt_tab for English tokenization
-try:
-    nltk.download('punkt_tab', quiet=True)
-    st.write("NLTK punkt_tab downloaded successfully.")
-except Exception as e:
-    st.warning(f"Failed to download NLTK punkt_tab: {str(e)}. Summarization may not work.")
+# Set OpenAI API key
+openai.api_key = os.getenv("OPENAI_API_KEY") or "your_openai_api_key_here"  # Replace with your key or use secrets
 
 # Supported languages
 LANGUAGES = {
@@ -110,35 +103,42 @@ def translate_text(text, dest_lang):
     translated_chunks = [translator.translate(chunk, dest=dest_lang).text for chunk in chunks]
     return " ".join(translated_chunks)
 
-# Function to summarize text (always in English)
+# Function to summarize text using OpenAI
 @st.cache_data
-def summarize_text(text, sentence_count=2):
+def summarize_text(text):
     try:
-        parser = PlaintextParser.from_string(text, Tokenizer("english"))
-        summarizer = LsaSummarizer()
-        summary = summarizer(parser.document, sentence_count)
-        summary_text = " ".join([str(sentence) for sentence in summary])
-        st.write(f"Summary generated. Original text length: {len(text.split())}. Summary length: {len(summary_text.split())}")
-        if len(summary_text.split()) >= len(text.split()):
-            st.warning("Summary is not shorter than original text. Using first sentence as fallback.")
-            return text.split('.')[0] + "."
-        return summary_text
+        prompt = f"Summarize the following text in English in 1-2 concise sentences:\n\n{text}"
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",  # Use "gpt-4" if you have access
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=50,
+            temperature=0.5
+        )
+        summary = response.choices[0].message["content"].strip()
+        st.write(f"Summary generated with OpenAI. Original length: {len(text.split())}. Summary length: {len(summary.split())}")
+        return summary
     except Exception as e:
-        st.error(f"Error summarizing text: {str(e)}")
+        st.error(f"Error summarizing with OpenAI: {str(e)}")
         return f"Error summarizing text: {str(e)}"
 
-# Function to generate simple questions based on transcription
+# Function to generate questions using OpenAI
+@st.cache_data
 def generate_questions(transcription):
-    # For simplicity, manually crafted questions based on text content
-    # In a real app, you'd use an AI model (e.g., GPT) for dynamic generation
-    sentences = transcription.split('.')
-    questions = []
-    if len(sentences) > 1:
-        questions.append(f"What is the main topic discussed in: '{sentences[0]}'?")
-        questions.append(f"What details are provided about: '{sentences[-2]}'?")
-    else:
-        questions.append(f"What does the speaker mean by: '{transcription}'?")
-    return questions
+    try:
+        prompt = f"Generate 2-3 short comprehension questions in English based on this text:\n\n{transcription}"
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=100,
+            temperature=0.7
+        )
+        questions_text = response.choices[0].message["content"].strip()
+        questions = [q.strip() for q in questions_text.split('\n') if q.strip()]
+        st.write("Questions generated with OpenAI.")
+        return questions[:3]  # Limit to 3 questions
+    except Exception as e:
+        st.error(f"Error generating questions with OpenAI: {str(e)}")
+        return ["Error generating questions."]
 
 # Function to convert text to audio with ElevenLabs
 def text_to_audio_elevenlabs(text, lang, voices):
@@ -180,8 +180,8 @@ st.write("Upload an audio or video file (WAV, MP3, AAC, MKV, MP4, etc.), choose 
 # Toggle for TTS engine preference
 tts_preference = st.radio("Text-to-Speech Engine", ("ElevenLabs (Random Voice)", "gTTS (Normal Voice)"), index=0)
 
-# Option to include summary (in English) with questions
-include_summary = st.checkbox("Include Summary of Translated Text (in English) with Questions", value=False)
+# Option to include summary and questions (in English)
+include_summary = st.checkbox("Include Summary and Questions (in English, powered by OpenAI)", value=False)
 st.write(f"Summary checkbox value: {include_summary}")  # Debug
 
 # Get available voices for ElevenLabs
@@ -231,19 +231,17 @@ if uploaded_file is not None:
         st.write(f"Translated Text ({output_lang_name}):", translated_text)
 
         if include_summary:
-            st.write("Attempting to generate summary of translated text...")
-            summary = summarize_text(translated_text, sentence_count=2)
+            st.write("Generating summary with OpenAI...")
+            summary = summarize_text(translated_text)
             st.write("Summary (English):", summary)
 
-            # Generate and display questions based on transcription
-            st.write("Questions based on Recognized Text:")
+            st.write("Generating questions with OpenAI...")
             questions = generate_questions(input_text)
+            st.write("Questions based on Recognized Text:")
             for i, q in enumerate(questions, 1):
                 st.write(f"{i}. {q}")
 
-            # Future learning resources note
             st.info("Extra Feature: More interactive learning resources (e.g., quizzes, flashcards) will be added in future updates!")
-
         else:
             st.write("Summary and questions skipped (checkbox not selected).")
 
